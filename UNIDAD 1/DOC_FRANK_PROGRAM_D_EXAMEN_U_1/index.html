@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoffeeTime</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>CoffeeTime ☕</h1>
+    </header>
+
+    <main>
+        <section class="menu">
+            <h2>Menú del Día</h2>
+            <div class="productos">
+                <div class="card">
+                    <h3>Café</h3>
+                    <p>Precio: S/ 5</p>
+                </div>
+                <div class="card">
+                    <h3>Capuchino</h3>
+                    <p>Precio: S/ 8</p>
+                </div>
+                <div class="card">
+                    <h3>Muffin</h3>
+                    <p>Precio: S/ 6</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="pedido">
+            <h2>Realiza tu pedido</h2>
+            <form id="pedidoForm">
+                <label for="cliente">Nombre del cliente:</label>
+                <input type="text" id="cliente" required>
+
+                <label for="producto">Producto:</label>
+                <select id="producto">
+                    <option value=5>Café - S/ 5</option>
+                    <option value=8>Capuchino - S/ 8</option>
+                    <option value=6>Muffin - S/ 6</option>
+                </select>
+
+                <label for="cantidad">Cantidad:</label>
+                <input type="number" id="cantidad" min="1" value="1">
+
+                <button type="submit">Calcular Total</button>
+            </form>
+            <p id="resultado"></p>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>

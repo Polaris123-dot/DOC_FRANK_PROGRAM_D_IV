@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Promedio de Alumno</title>
+</head>
+<body>
+    <h1>Calcular Promedio</h1>
+
+    <label>Nota 1:</label>
+    <input type="number" id="nota1"><br><br>
+
+    <label>Nota 2:</label>
+    <input type="number" id="nota2"><br><br>
+
+    <label>Nota 3:</label>
+    <input type="number" id="nota3"><br><br>
+
+    <button onclick="calcularPromedio()">Calcular Promedio</button>
+
+    <h2 id="resultado"></h2>
+
+    <script>
+        function calcularPromedio() {
+            let n1 = parseFloat(document.getElementById("nota1").value);
+            let n2 = parseFloat(document.getElementById("nota2").value);
+            let n3 = parseFloat(document.getElementById("nota3").value);
+
+            if (isNaN(n1) || isNaN(n2) || isNaN(n3)) {
+                document.getElementById("resultado").innerText = "Por favor, ingresa los 3 valores.";
+                return;
+            }
+
+            let promedio = (n1 + n2 + n3) / 3;
+
+            // Mostrar resultado
+            document.getElementById("resultado").innerText = "El promedio es: " + promedio.toFixed(2);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control Docente</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #007bff; }
+        .info-box { border: 1px solid #ccc; padding: 15px; margin-top: 20px; border-radius: 6px; }
+        /* Hacemos que la asignación parezca un botón clickeable */
+        .asignacion { background: #f9f9f9; margin-top: 10px; padding: 15px; border-left: 5px solid #007bff; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; }
+        .asignacion:hover { background-color: #e9e9e9; }
+        button { background-color: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bienvenido(a) Docente</h1>
+        <p>Este es su Panel de Control. Desde aquí podrá gestionar sus cursos y registrar notas.</p>
+        
+        <div class="info-box">
+            <p><strong>ID de Docente:</strong> <span id="docente-id"></span></p>
+            <p><strong>Nombre:</strong> <span id="docente-nombre"></span></p>
+            
+            <h2>Mis Cursos Asignados (Clic para Gestionar Notas)</h2>
+            <div id="lista-asignaciones"><em>Cargando asignaciones...</em></div>
+        </div>
+
+        <button onclick="logout()">Cerrar Sesión</button>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:3000";
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const docenteId = localStorage.getItem('docenteId');
+            const docenteNombre = localStorage.getItem('docenteNombre');
+
+            if (!docenteId) {
+                // Usamos una notificación más suave en lugar de alert()
+                console.warn('Sesión no encontrada. Redirigiendo a login.');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            document.getElementById('docente-id').textContent = docenteId;
+            document.getElementById('docente-nombre').textContent = docenteNombre;
+            
+            const lista = document.getElementById('lista-asignaciones');
+
+            try {
+                // Usamos la URL completa y el ID en la ruta
+                const response = await fetch(`${API_URL}/asignaciones/${docenteId}`);
+                const data = await response.json();
+
+                if (data.ok) {
+                    lista.innerHTML = "";
+                    if (data.asignaciones.length === 0) {
+                        lista.innerHTML = "<p>No tiene cursos asignados.</p>";
+                    } else {
+                        data.asignaciones.forEach(a => {
+                            const item = document.createElement('div');
+                            item.classList.add('asignacion');
+                            
+                            // 👇 Lógica de redirección a alumnos.html pasando IDs
+                            item.onclick = () => {
+                                window.location.href = `alumnos.html?idAsignacion=${a.id_asignacion}&curso=${encodeURIComponent(a.nombre_curso)}`;
+                            };
+                            
+                            item.innerHTML = `
+                                <strong>${a.nombre_curso}</strong><br>
+                                Periodo: ${a.periodo} | Sección: ${a.seccion} 
+                            `;
+                            lista.appendChild(item);
+                        });
+                    }
+                } else {
+                    lista.innerHTML = "<p class='alert-error'>Error al obtener las asignaciones.</p>";
+                }
+            } catch (error) {
+                console.error("Error al conectar con el servidor:", error);
+                lista.innerHTML = "<p style='color: red;'>⚠️ No se pudo conectar al servidor.</p>";
+            }
+        });
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

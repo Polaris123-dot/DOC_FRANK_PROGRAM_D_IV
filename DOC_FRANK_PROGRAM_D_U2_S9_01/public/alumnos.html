@@ -117,36 +117,48 @@
 
         // Función simulada para guardar nota (PENDIENTE de ruta POST)
         async function guardarNota(idInscripcion) {
-            const inputId = `nota-${idInscripcion}`;
+            const inputId = `nota-${idInscripcion}`; // Suponiendo tipo_nota 1 para P1
             const notaElement = document.getElementById(inputId);
             const valorNota = parseFloat(notaElement.value);
             const statusDiv = document.getElementById('status-message');
 
             if (isNaN(valorNota) || valorNota < 0 || valorNota > 20) {
                 statusDiv.className = 'alert alert-error';
-                statusDiv.textContent = 'Por favor, ingrese un valor de nota válido (0 a 20).';
+                statusDiv.textContent = 'Ingrese una nota válida (0 a 20).';
                 statusDiv.style.display = 'block';
                 return;
             }
 
-            // PENDIENTE: Aquí iría la llamada a la API POST /notas
-            statusDiv.className = 'alert';
-            statusDiv.textContent = 'Guardando nota (API POST no implementada)...';
-            statusDiv.style.display = 'block';
-            
             try {
-                // Simulación de guardado exitoso
-                await new Promise(resolve => setTimeout(resolve, 500)); 
+                const response = await fetch(`${API_URL}/notas`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id_inscripcion: idInscripcion,
+                        id_tipo_nota: 1,
+                        valor: valorNota
+                    })
+                });
 
-                statusDiv.className = 'alert alert-success';
-                statusDiv.textContent = `✅ Nota ${valorNota.toFixed(1)} guardada para Inscripción #${idInscripcion}.`;
+                const data = await response.json();
+
+                if (data.ok) {
+                    statusDiv.className = 'alert alert-success';
+                    statusDiv.textContent = `✅ ${data.mensaje}`;
+                } else {
+                    throw new Error(data.mensaje);
+                }
+
             } catch (error) {
+                console.error("Error al guardar la nota:", error);
                 statusDiv.className = 'alert alert-error';
-                statusDiv.textContent = '❌ Error al guardar la nota en el servidor (Simulación fallida).';
+                statusDiv.textContent = '❌ No se pudo guardar la nota.';
             } finally {
-                 setTimeout(() => statusDiv.style.display = 'none', 3000);
+                statusDiv.style.display = 'block';
+                setTimeout(() => (statusDiv.style.display = 'none'), 3000);
             }
         }
+
 
         // Inicio de la aplicación: Leer el ID de la URL y cargar datos
         document.addEventListener('DOMContentLoaded', () => {

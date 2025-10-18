@@ -98,18 +98,26 @@ app.get("/asignaciones/:id_docente", async (req, res) => {
 
         // **CONSULTA CORREGIDA**
         const sql = `
-            SELECT 
-                a.id_asignacion, 
-                c.nombre AS nombre_curso,  
-                a.periodo, 
-                a.seccion 
-            FROM Asignaciones a
-            JOIN Cursos c ON a.id_curso = c.id_curso
-            WHERE a.id_docente = ?
+        SELECT 
+            a.id_asignacion,
+            c.id_curso,
+            c.nombre AS nombre_curso,
+            a.periodo,
+            a.seccion,
+            al.id_alumno,
+            CONCAT(al.nombre, ' ', al.apellido) AS nombre_alumno
+        FROM asignaciones a
+        JOIN cursos c        ON a.id_curso = c.id_curso
+        JOIN inscripciones i ON i.id_asignacion = a.id_asignacion
+        JOIN alumnos al      ON al.id_alumno = i.id_alumno
+        WHERE a.id_docente = 1
+        ORDER BY c.nombre, a.periodo, a.seccion, nombre_alumno;
+
         `;
         const [rows] = await connection.execute(sql, [id_docente]);
 
         res.json({ ok: true, asignaciones: rows });
+
     } catch (err) {
         console.error("❌ Error al obtener asignaciones:", err);
         // Devolvemos el error de la BD al cliente (no en producción)
@@ -167,6 +175,64 @@ app.get("/asignaciones/:id_asignacion/alumnos", async (req, res) => {
         console.log(`Conexión liberada después de GET ALUMNOS para asignación ${id_asignacion}.`);
     }
 });
+
+// ----------------------------------------------------------------------
+// 📝 RUTA NUEVA: Registrar o actualizar nota (por inscripción y tipo de nota)
+// ----------------------------------------------------------------------
+app.post("/notas", async (req, res) => {
+    const { id_inscripcion, id_tipo_nota, valor } = req.body;
+    let connection;
+
+    // Validaciones básicas
+    if (!id_inscripcion || !id_tipo_nota || isNaN(valor)) {
+        return res.status(400).json({
+            ok: false,
+            mensaje: "Datos inválidos: se requiere id_inscripcion, id_tipo_nota y valor numérico.",
+        });
+    }
+
+    try {
+        connection = await pool.getConnection();
+
+        // 🔍 Verificar si ya existe una nota para esa inscripción y tipo
+        const checkSQL = `
+            SELECT id_nota 
+            FROM notas 
+            WHERE id_inscripcion = ? AND id_tipo_nota = ?
+        `;
+        const [existe] = await connection.execute(checkSQL, [id_inscripcion, id_tipo_nota]);
+
+        if (existe.length > 0) {
+            // 🟡 Si ya existe → se actualiza
+            const updateSQL = `
+                UPDATE notas 
+                SET valor = ?, fecha_registro = CURDATE()
+                WHERE id_inscripcion = ? AND id_tipo_nota = ?
+            `;
+            await connection.execute(updateSQL, [valor, id_inscripcion, id_tipo_nota]);
+            res.json({ ok: true, mensaje: "Nota actualizada correctamente." });
+        } else {
+            // 🟢 Si no existe → se inserta
+            const insertSQL = `
+                INSERT INTO notas (id_inscripcion, id_tipo_nota, valor, fecha_registro)
+                VALUES (?, ?, ?, CURDATE())
+            `;
+            await connection.execute(insertSQL, [id_inscripcion, id_tipo_nota, valor]);
+            res.json({ ok: true, mensaje: "Nota registrada correctamente." });
+        }
+
+    } catch (err) {
+        console.error("❌ Error al registrar o actualizar nota:", err);
+        res.status(500).json({
+            ok: false,
+            mensaje: "Error interno del servidor al registrar la nota.",
+        });
+    } finally {
+        if (connection) connection.release();
+    }
+});
+
+
 
 // ----------------------------------------------------------------------
 // Servidor

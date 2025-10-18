@@ -54,7 +54,7 @@
                 // Usamos la URL completa y el ID en la ruta
                 const response = await fetch(`${API_URL}/asignaciones/${docenteId}`);
                 const data = await response.json();
-
+                console.log("Asignaciones recibidas:", data);
                 if (data.ok) {
                     lista.innerHTML = "";
                     if (data.asignaciones.length === 0) {

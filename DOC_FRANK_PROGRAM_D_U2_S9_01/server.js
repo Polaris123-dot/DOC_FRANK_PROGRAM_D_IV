@@ -1,10 +1,30 @@
 import express from "express";
 import mysql from "mysql2/promise"; // Importar la versión de promesas
 import cors from "cors";
+import session from "express-session";
+import bcrypt from "bcrypt";
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+
+// Configuración de CORS para permitir credenciales
+app.use(cors({
+    origin: "http://localhost:3000",
+    credentials: true
+}));
+
+// Configuración de sesiones
+app.use(session({
+    secret: "mi-secreto-super-seguro-cambiar-en-produccion", // En producción, usar variable de entorno
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: false, // Cambiar a true si usas HTTPS
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 24 horas
+    }
+}));
+
 app.use(express.static("public"));
 
 // Configuración del Pool de Conexiones (¡Recomendado!)
@@ -31,6 +51,47 @@ pool.getConnection()
         process.exit(1); 
     });
 
+// ----------------------------------------------------------------------
+// 🔐 MIDDLEWARES DE AUTENTICACIÓN Y AUTORIZACIÓN
+// ----------------------------------------------------------------------
+
+// Middleware: Verificar si el usuario está autenticado
+const requireAuth = (req, res, next) => {
+    if (req.session && req.session.docente) {
+        return next(); // Usuario autenticado, permitir acceso
+    }
+    return res.status(401).json({ 
+        ok: false, 
+        mensaje: "❌ No autorizado. Debe iniciar sesión." 
+    });
+};
+
+// Middleware: Verificar rol del usuario (DESACTIVADO - no hay columna de roles en BD)
+// Para usar, necesitas agregar la columna 'rol' a la tabla Docentes
+/*
+const requireRole = (...roles) => {
+    return (req, res, next) => {
+        if (!req.session || !req.session.docente) {
+            return res.status(401).json({ 
+                ok: false, 
+                mensaje: "❌ No autorizado. Debe iniciar sesión." 
+            });
+        }
+
+        const userRole = req.session.docente.rol || 'docente';
+        
+        if (!roles.includes(userRole)) {
+            return res.status(403).json({ 
+                ok: false, 
+                mensaje: "❌ Acceso denegado. No tiene permisos suficientes." 
+            });
+        }
+
+        next(); // Usuario tiene el rol requerido
+    };
+};
+*/
+
 
 // ----------------------------------------------------------------------
 // 🔒 Ruta de Login (Apertura y Cierre por Solicitud)
@@ -44,8 +105,11 @@ app.post("/login", async (req, res) => {
         connection = await pool.getConnection();
 
         // 2. Consulta Preparada
-        // Usamos execute() para consultas preparadas
-        const sql = "SELECT id_docente, nombre, apellido, password FROM Docentes WHERE email = ?";
+        const sql = `
+            SELECT id_docente, nombre, apellido, password 
+            FROM Docentes 
+            WHERE email = ?
+        `;
         const [results] = await connection.execute(sql, [email]);
 
         if (results.length === 0) {
@@ -54,12 +118,26 @@ app.post("/login", async (req, res) => {
         
         const docente = results[0];
         
-        // **Nota Importante:** Esto es vulnerable. En producción, aquí se usaría bcrypt.compare()
+        // Comparación de contraseñas
+        // TODO: Implementar bcrypt.hash() y bcrypt.compare() en producción
         if (docente.password === password) {
+            // Crear sesión del usuario
+            req.session.docente = {
+                id_docente: docente.id_docente,
+                nombre: docente.nombre,
+                apellido: docente.apellido
+            };
+
+            console.log(`✅ Sesión creada para: ${docente.nombre} ${docente.apellido}`);
+
             res.json({ 
                 ok: true, 
                 mensaje: "✅ Acceso concedido", 
-                docente: { id_docente: docente.id_docente, nombre: docente.nombre, apellido: docente.apellido }
+                docente: {
+                    id_docente: docente.id_docente,
+                    nombre: docente.nombre,
+                    apellido: docente.apellido
+                }
             });
         } else {
             res.json({ ok: false, mensaje: "❌ Credenciales incorrectas" });
@@ -77,6 +155,36 @@ app.post("/login", async (req, res) => {
     }
 });
 
+// ----------------------------------------------------------------------
+// 🚪 Ruta de Logout
+// ----------------------------------------------------------------------
+app.post("/logout", (req, res) => {
+    if (req.session.docente) {
+        console.log(`👋 Sesión cerrada para: ${req.session.docente.nombre}`);
+    }
+    req.session.destroy((err) => {
+        if (err) {
+            console.error("Error al destruir sesión:", err);
+            return res.status(500).json({ ok: false, mensaje: "Error al cerrar sesión" });
+        }
+        res.json({ ok: true, mensaje: "Sesión cerrada correctamente" });
+    });
+});
+
+// ----------------------------------------------------------------------
+// ✅ Ruta de verificación de sesión
+// ----------------------------------------------------------------------
+app.get("/api/session", (req, res) => {
+    if (req.session && req.session.docente) {
+        res.json({ 
+            ok: true, 
+            docente: req.session.docente,
+            autenticado: true 
+        });
+    } else {
+        res.json({ ok: false, autenticado: false });
+    }
+});
 
 // ----------------------------------------------------------------------
 // 📘 Ruta para obtener las asignaciones del docente
@@ -84,7 +192,7 @@ app.post("/login", async (req, res) => {
 // ----------------------------------------------------------------------
 // 📘 Ruta para obtener las asignaciones del docente (YA EXISTENTE)
 // ----------------------------------------------------------------------
-app.get("/asignaciones/:id_docente", async (req, res) => {
+app.get("/asignaciones/:id_docente", requireAuth, async (req, res) => {
     const id_docente = parseInt(req.params.id_docente, 10); 
     let connection;
 
@@ -110,7 +218,7 @@ app.get("/asignaciones/:id_docente", async (req, res) => {
         JOIN cursos c        ON a.id_curso = c.id_curso
         JOIN inscripciones i ON i.id_asignacion = a.id_asignacion
         JOIN alumnos al      ON al.id_alumno = i.id_alumno
-        WHERE a.id_docente = 1
+        WHERE a.id_docente = ?
         ORDER BY c.nombre, a.periodo, a.seccion, nombre_alumno;
 
         `;
@@ -133,7 +241,7 @@ app.get("/asignaciones/:id_docente", async (req, res) => {
 // 👥 RUTA NUEVA: Obtener alumnos inscritos por asignación
 // ----------------------------------------------------------------------
 // Esta ruta se llama desde alumnos.html usando el id_asignacion
-app.get("/asignaciones/:id_asignacion/alumnos", async (req, res) => {
+app.get("/asignaciones/:id_asignacion/alumnos", requireAuth, async (req, res) => {
     // 1. Extraer y validar el ID de la asignación
     const id_asignacion = parseInt(req.params.id_asignacion, 10);
     let connection;
@@ -179,7 +287,7 @@ app.get("/asignaciones/:id_asignacion/alumnos", async (req, res) => {
 // ----------------------------------------------------------------------
 // 📝 RUTA NUEVA: Registrar o actualizar nota (por inscripción y tipo de nota)
 // ----------------------------------------------------------------------
-app.post("/notas", async (req, res) => {
+app.post("/notas", requireAuth, async (req, res) => {
     const { id_inscripcion, id_tipo_nota, valor } = req.body;
     let connection;
 

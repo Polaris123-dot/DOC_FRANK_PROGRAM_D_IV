@@ -35,24 +35,36 @@
         const API_URL = "http://localhost:3000";
 
         document.addEventListener('DOMContentLoaded', async () => {
-            const docenteId = localStorage.getItem('docenteId');
-            const docenteNombre = localStorage.getItem('docenteNombre');
-
-            if (!docenteId) {
-                // Usamos una notificación más suave en lugar de alert()
-                console.warn('Sesión no encontrada. Redirigiendo a login.');
-                window.location.href = 'index.html';
+            // Verificar sesión con el backend
+            let sesionValida = false;
+            try {
+                const sessionRes = await fetch(`${API_URL}/api/session`, { credentials: 'include' });
+                const sessionData = await sessionRes.json();
+                
+                if (!sessionData.autenticado) {
+                    console.warn('Sesión no válida. Redirigiendo a login.');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                sesionValida = true;
+                document.getElementById('docente-id').textContent = sessionData.docente.id_docente;
+                document.getElementById('docente-nombre').textContent = `${sessionData.docente.nombre} ${sessionData.docente.apellido}`;
+                
+            } catch (error) {
+                console.error('Error verificando sesión:', error);
+                window.location.href = 'login.html';
                 return;
             }
 
-            document.getElementById('docente-id').textContent = docenteId;
-            document.getElementById('docente-nombre').textContent = docenteNombre;
+            if (!sesionValida) return;
             
             const lista = document.getElementById('lista-asignaciones');
+            const docenteId = localStorage.getItem('docenteId');
 
             try {
                 // Usamos la URL completa y el ID en la ruta
-                const response = await fetch(`${API_URL}/asignaciones/${docenteId}`);
+                const response = await fetch(`${API_URL}/asignaciones/${docenteId}`, { credentials: 'include' });
                 const data = await response.json();
                 console.log("Asignaciones recibidas:", data);
                 if (data.ok) {
@@ -85,7 +97,15 @@
             }
         });
 
-        function logout() {
+        async function logout() {
+            try {
+                await fetch(`${API_URL}/logout`, { 
+                    method: 'POST',
+                    credentials: 'include'
+                });
+            } catch (error) {
+                console.error('Error al cerrar sesión:', error);
+            }
             localStorage.clear();
             window.location.href = 'login.html';
         }

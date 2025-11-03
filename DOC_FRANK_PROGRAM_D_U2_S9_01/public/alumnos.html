@@ -56,7 +56,7 @@
 
             try {
                 // Llamar al backend usando el idAsignacion
-                const response = await fetch(`${API_URL}/asignaciones/${idAsignacion}/alumnos`);
+                const response = await fetch(`${API_URL}/asignaciones/${idAsignacion}/alumnos`, { credentials: 'include' });
                 const data = await response.json();
 
                 if (data.ok) {
@@ -137,7 +137,8 @@
                         id_inscripcion: idInscripcion,
                         id_tipo_nota: 1,
                         valor: valorNota
-                    })
+                    }),
+                    credentials: 'include'
                 });
 
                 const data = await response.json();

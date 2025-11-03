@@ -3,6 +3,8 @@
   "dependencies": {
     "express": "^4.19.2",
     "mysql2": "^3.9.0",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "express-session": "^1.18.0",
+    "bcrypt": "^5.1.1"
   }
 }

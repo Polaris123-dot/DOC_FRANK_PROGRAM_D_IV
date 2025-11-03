@@ -117,7 +117,8 @@
         const res = await fetch('/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ email, password }),
+          credentials: 'include' // Importante para enviar cookies de sesión
         });
 
         const data = await res.json();
@@ -126,12 +127,11 @@
           msg.textContent = '✅ Acceso concedido, redirigiendo...';
           msg.style.color = 'green';
 
-          // Guardar sesión simulada
+          // Guardar información local (opcional, ya que el backend maneja la sesión)
           localStorage.setItem('docenteId', data.docente.id_docente);
           localStorage.setItem('docenteNombre', `${data.docente.nombre} ${data.docente.apellido}`);
 
- 
-            window.location.href = 'dashboard.html';
+          window.location.href = 'dashboard.html';
         
 
         } else {
